@@ -49,6 +49,9 @@
 - Wang, Z., Di Tullio, R. W., Rooke, S., & Balasubramanian, V. (2024). Time Makes Space: Emergence of Place Fields in Networks Encoding Temporally Continuous Sensory Experiences. NeurIPS 2024. https://arxiv.org/abs/2408.05798
   Role: temporally continuous masked sensory reconstruction yields place-like fields, remapping, drift, and continual recall without spatial supervision. It motivates sensory continuity, room identity, revisit structure, and masking/cue loss as explicit environment axes.
 
+- Ritter, L., & Chadwick, A. (2025). Efficient Working Memory Maintenance via High-Dimensional Rotational Dynamics. bioRxiv (preprint, v1). https://doi.org/10.1101/2025.09.08.674838
+  Role: efficient, noise-robust working-memory solutions develop high-dimensional rotational dynamics, with evidence in monkey prefrontal cortex. A useful contrast for GeoMem: dynamic recurrent maintenance can be selected by efficiency constraints even without a navigation-specific sequence mechanism.
+
 ## AI Recommendations
 
 - Ollivier, Y. (2009). Ricci curvature of Markov chains on metric spaces. Journal of Functional Analysis. https://doi.org/10.1016/j.jfa.2008.11.001  
