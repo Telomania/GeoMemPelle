@@ -34,6 +34,12 @@
 
 ## Requested Reading
 
+- Zhang, L., Yang, G., & Stadie, B. C. (2021). World Model as a Graph: Learning Latent Landmarks for Planning. ICML. [Paper](https://proceedings.mlr.press/v139/zhang21x.html).
+  Role: user-requested graph-construction candidate (L3P). Learns landmarks in a Euclidean latent space and plans using directed reachability weights. Assess landmark compression separately from graph fidelity.
+
+- Bae, J., Park, K., & Lee, Y. (2024). TLDR: Unsupervised Goal-Conditioned RL via Temporal Distance-Aware Representations. CoRL. [Paper](https://arxiv.org/abs/2407.08464).
+  Role: user-requested exploration/representation candidate. Does not itself extract an explicit graph. Its symmetric latent distance motivates separate tests of branching distortion and directional travel costs.
+
 - Gao, P., & Ganguli, S. (2015). On simplicity and complexity in the brave new world of large-scale neuroscience. Current Opinion in Neurobiology. https://doi.org/10.1016/j.conb.2015.04.003  
   Role: **user-identified first priority for the environment/measure work.** Neural task complexity (NTC) bounds representational dimensionality using the volume of the task-parameter manifold and the neural correlation length. The volume-over-correlation-volume construction is the closest existing template for a curvature-like GeoMem task index, but GeoMem should define its index on the controlled task and observation process rather than on a trained neural representation.
 
@@ -53,6 +59,12 @@
   Role: efficient, noise-robust working-memory solutions develop high-dimensional rotational dynamics, with evidence in monkey prefrontal cortex. A useful contrast for GeoMem: dynamic recurrent maintenance can be selected by efficiency constraints even without a navigation-specific sequence mechanism.
 
 ## AI Recommendations
+
+- Wang, T., Torralba, A., Isola, P., & Zhang, A. (2023). Optimal Goal-Reaching Reinforcement Learning via Quasimetric Learning. ICML. [Paper](https://proceedings.mlr.press/v202/wang23al.html).
+  Role: candidate approach for directed goal-reaching costs. Asymmetry is distinct from curvature; theoretical recovery claims must retain the paper's assumptions.
+
+- Nickel, M., & Kiela, D. (2017). Poincare Embeddings for Learning Hierarchical Representations. NeurIPS. [Paper](https://papers.nips.cc/paper/2017/hash/59dfa2df42d9e3d41f5b02bfc32229dd-Abstract.html).
+  Role: geometric alternative for compact hierarchical representations. Does not by itself establish transition fidelity or memory sufficiency for control.
 
 - Ollivier, Y. (2009). Ricci curvature of Markov chains on metric spaces. Journal of Functional Analysis. https://doi.org/10.1016/j.jfa.2008.11.001  
   Role: principled local curvature for stochastic transition kernels, defined by contraction or expansion of nearby one-step distributions in Wasserstein distance. A strong candidate diagnostic for environments, but it must be tested against GeoMem's commutativity, transition ambiguity, and policy ambiguity rather than assumed to predict memory demand by itself.

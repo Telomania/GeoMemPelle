@@ -237,6 +237,28 @@ Interpretation: the Lin-facing result is now horizon matched. Sequence-span adva
 
 ## What Is Still Missing
 
+### Mapping Rich Environments To Graphs
+
+Literature assessment, 2026-10-26; this is a proposed extension, not a new experimental result. The existing finite-state results do not establish a universal graph extractor for robotics or neuroscience tasks.
+
+An environment can be represented as a directed, action-labelled transition graph when its Markov state is available. A finite graph for a continuous environment is an approximation at a specified resolution. Under partial observability, observation identity need not identify state: predictive histories or beliefs may be needed, and there need not be a small exact finite graph.
+
+[L3P](https://proceedings.mlr.press/v139/zhang21x/zhang21x.pdf) supplies a useful landmark-planning template. Its latent loss matches squared Euclidean separation to symmetrized estimated travel time; its final graph instead uses directed reachability estimates as weights. [TLDR](https://arxiv.org/html/2407.08464v2) supplies exploration and representation learning rather than an explicit graph extractor. It uses Euclidean latent distance for goal selection and rewards. These are candidate components for graph acquisition, not guarantees of recovering task geometry.
+
+The geometric issue is the imposed distance function, not the use of real-valued coordinates. A graph can retain tree-like shortest-path geometry while its node features are vectors. Low-dimensional Euclidean distance can distort branching structure; hyperbolic distance is a plausible alternative for hierarchical structure ([Poincare embeddings](https://papers.nips.cc/paper/2017/hash/59dfa2df42d9e3d41f5b02bfc32229dd-Abstract.html)). L3P's squared-distance target requires separate analysis: a finite weighted tree can represent path length exactly as squared Euclidean distance using one coordinate per edge. This construction does not establish compactness or trainability.
+
+Proposed extraction contract:
+
+- Define nodes using simulator state where available, or candidate predictive histories/beliefs otherwise. Keep the agent's sensory channel separate from privileged state used for evaluation.
+- Retain directed action-conditioned transitions, outcome probabilities, costs/durations, and observation distributions. For temporally extended edges, record the executing policy and termination rule; the result is an option-level model.
+- Use learned features to propose landmarks or candidate neighbours, then validate connectivity against transitions or controller rollouts. Feature proximity alone must not establish an edge.
+- Sweep graph resolution, temporal horizon, data coverage, and collection policy. Estimate missing-edge and false-edge errors; disconnected observed components need not be truly disconnected.
+- Validate every extractor against the existing commutativity, observation ambiguity, transition ambiguity, policy ambiguity, and residual-history diagnostics where their assumptions apply. Add held-out transition/control checks and path-distance distortion. For stochastic tasks, transition ambiguity must compare conditional distributions rather than count distinct outcomes.
+
+Two confounds are central to GeoMem. First, a memory-based extractor may already resolve the history dependence being studied; report its memory and retain oracle-state controls. Second, an unlabelled reachability graph discards which actions realize paths and can conceal action-order effects. Curvature, action commutativity, and memory sufficiency must remain separate measurements. Symmetric hyperbolic distance also cannot represent one-way travel costs; directed models or [quasimetric learning](https://proceedings.mlr.press/v202/wang23al.html) address a different issue.
+
+The current policy diagnostics explicitly add reverse navigation edges. They should not be interpreted as validating arbitrary irreversible robotics tasks without extending that assumption; see the [diagnostic transfer report](../../geomem-env/docs/diagnostic_transfer_report.md).
+
 The remaining missing pieces are for a stronger future computational-neuroscience model paper, not for the current theory/diagnostic version:
 
 - a full RL hippocampus-inspired sequence-generator agent;

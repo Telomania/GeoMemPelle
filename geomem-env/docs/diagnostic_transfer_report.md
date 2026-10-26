@@ -27,6 +27,8 @@ These functions accept arbitrary observation functions, so the same diagnostic l
 - Effective commutativity is cleanest for action-history and local movement systems. In cue-choice tasks, low commutativity can reflect task protocol actions rather than spatial geometry alone.
 - Local view vectors are richer than symbolic sparse observations, but they are still controlled feature summaries, not rendered continuous sensory streams.
 - Policy ambiguity depends on the selected goal. The default goal is deterministic and useful for diagnostics, but experiments should still choose paper-specific goals explicitly.
+- Shortest-path policy diagnostics currently use `reversible_navigation_graph()`, which adds reverse edges. Arbitrary irreversible tasks require directed policy evaluation before these diagnostics can be transferred. In stochastic tasks, transition sufficiency must compare conditional outcome distributions; multiple outcomes alone do not establish hidden-state aliasing.
+- Learned landmark graphs require an extraction audit before their geometry can be treated as task geometry: check action labels, observation/history aliasing, edge direction, controller dependence, coverage, and discretization. Euclidean node features do not require Euclidean graph distances. The [current synthesis](../../geomem-paper/reports/current_results_synthesis.md#mapping-rich-environments-to-graphs) records the L3P/TLDR assessment and proposed validation contract.
 
 ## Current Boundary
 
