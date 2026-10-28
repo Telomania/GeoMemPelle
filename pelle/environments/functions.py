@@ -23,10 +23,10 @@ DIRECTION_VECTORS = {
 }
 
 ORIENTATION_OFFSETS = {
-    0: (0.22, 0.00),   # right
-    1: (0.00, 0.22),   # down
-    2: (-0.22, 0.00),  # left
-    3: (0.00, -0.22),  # up
+    0: (0.44 * np.cos(np.pi/6), 0.44 * np.sin(np.pi/6)),   # right
+    1: (0.44 * np.sin(np.pi/6), -0.44 * np.cos(np.pi/6)),   # down
+    2: (-0.44 * np.cos(np.pi/6), -0.44 * np.sin(np.pi/6)),  # left
+    3: (-0.44 * np.sin(np.pi/6), 0.44 * np.cos(np.pi/6)),  # up
 }
 
 ACTION_ORDER = {"L": 0, "R": 1, "F": 2, "B": 3}
