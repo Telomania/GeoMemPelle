@@ -23,11 +23,13 @@ DIRECTION_VECTORS = {
 }
 
 ORIENTATION_OFFSETS = {
-    0: (0.22, 0.00),
-    1: (0.00, 0.22),
-    2: (-0.22, 0.00),
-    3: (0.00, -0.22),
+    0: (0.22, 0.00),   # right
+    1: (0.00, 0.22),   # down
+    2: (-0.22, 0.00),  # left
+    3: (0.00, -0.22),  # up
 }
+
+ACTION_ORDER = {"L": 0, "R": 1, "F": 2, "B": 3}
 
 
 def _tile_state(state):
@@ -37,7 +39,7 @@ def _tile_state(state):
 
 
 def _project_orientation_graph(graph):
-    """Collapse the 4-state-per-tile orientation graph to a tile-only undirected graph."""
+    """Collapse the orientation-expanded graph to a tile-only undirected graph."""
     tile_graph = {}
     for state, neighbors in graph.items():
         tile = _tile_state(state)
@@ -68,11 +70,8 @@ def visualize_network(
     title="Maze Graph",
 ):
     """
-    Visualize a maze graph.
-
-    Accepts either tile nodes like (x, y) or orientation-expanded nodes like (x, y, heading).
-    If the graph contains 4 heading states per tile, they are positioned in a tiny cluster around
-    that tile with a consistent offset by heading.
+    Visualize a maze graph whose states are (x, y, heading). All states sharing the same
+    tile coordinate are positioned as a small cluster around that tile.
     """
     if isinstance(G, dict):
         G_nx = nx.Graph()
@@ -218,15 +217,17 @@ def visualize_network(
 
 def minigrid_maze_to_graph(env, *, include_orientation=True, undirected=True):
     """
-    Convert a MiniGrid maze env into a graph.
+    Convert a MiniGrid maze env into a graph of coordinate+heading states.
 
-    With 4 heading states per tile, nodes are (x, y, heading) and actions are:
+    The state is (x, y, heading), where heading indicates the facing direction.
+    We include four actions:
         - "L": turn left
         - "R": turn right
         - "F": move forward
+        - "B": move backward
 
-    The user request here is to treat the graph as undirected at the state level too, so we add
-    the reverse edges for every valid transition when `undirected=True`.
+    This makes the graph undirected in the sense that every state can be reached again,
+    but still preserves the distinction between facing-right / facing-left / facing-up / facing-down.
     """
     base_env = env.unwrapped if hasattr(env, "unwrapped") else env
     grid = base_env.grid
@@ -245,17 +246,24 @@ def minigrid_maze_to_graph(env, *, include_orientation=True, undirected=True):
                     state = (x, y, heading)
                     graph[state] = {}
 
-                    left_heading = (heading - 1) % 4
+                    left_heading = (heading + 3) % 4
                     right_heading = (heading + 1) % 4
                     graph[state]["L"] = (x, y, left_heading)
                     graph[state]["R"] = (x, y, right_heading)
 
                     dx, dy = DIRECTION_VECTORS[heading]
-                    nx_coord, ny_coord = x + dx, y + dy
-                    if 0 <= nx_coord < width and 0 <= ny_coord < height:
-                        next_cell = grid.get(nx_coord, ny_coord)
+
+                    fx, fy = x + dx, y + dy
+                    if 0 <= fx < width and 0 <= fy < height:
+                        next_cell = grid.get(fx, fy)
                         if next_cell is None or getattr(next_cell, "type", None) != "wall":
-                            graph[state]["F"] = (nx_coord, ny_coord, heading)
+                            graph[state]["F"] = (fx, fy, heading)
+
+                    bx, by = x - dx, y - dy
+                    if 0 <= bx < width and 0 <= by < height:
+                        back_cell = grid.get(bx, by)
+                        if back_cell is None or getattr(back_cell, "type", None) != "wall":
+                            graph[state]["B"] = (bx, by, heading)
             else:
                 state = (x, y)
                 graph[state] = {}
@@ -269,12 +277,11 @@ def minigrid_maze_to_graph(env, *, include_orientation=True, undirected=True):
                     graph[state][(nx_coord, ny_coord)] = (nx_coord, ny_coord)
 
     if undirected:
-        undirected_graph = {state: dict(neighbors) for state, neighbors in graph.items()}
-        for state, neighbors in list(graph.items()):
-            for _, nxt in neighbors.items():
-                undirected_graph.setdefault(nxt, {})
-                undirected_graph[nxt].setdefault(state, state)
-                undirected_graph[state].setdefault(nxt, nxt)
+        undirected_graph = {state: {} for state in graph}
+        for state, neighbors in graph.items():
+            for nxt in neighbors.values():
+                undirected_graph.setdefault(state, {})[nxt] = nxt
+                undirected_graph.setdefault(nxt, {})[state] = state
         graph = undirected_graph
 
     return graph
@@ -303,12 +310,7 @@ def graph_to_adjacency_matrix(graph, directed=False):
 
 def graph_to_geomem_dict(graph):
     states = tuple(sorted(graph.keys()))
-    actions = tuple(
-        sorted(
-            {action for edges in graph.values() for action in edges.keys()},
-            key=lambda a: ("L", "R", "F").index(a) if a in ("L", "R", "F") else 999,
-        )
-    ) or ("L", "R", "F")
+    actions = tuple(sorted({action for edges in graph.values() for action in edges.keys()}, key=lambda a: ACTION_ORDER.get(a, 99))) or ("L", "R", "F", "B")
 
     transition = {}
     valid = set()
@@ -515,7 +517,7 @@ def setup_env(EnvString, edge_length, visualise=False):
             break
 
         if counter == 10:
-            print(f'{EnvString.split('-')[2]} can not be built with only one component')
+            print(f"{EnvString.split('-')[2]} cannot be built with a single connected component")
             break
 
     A, index = graph_to_adjacency_matrix(graph, directed=False)
@@ -556,11 +558,10 @@ def prep_env(EnvString, edge_length):
             for nxt in neighbors.values():
                 G.add_edge(state, nxt)
 
-        # keep generating until the graph is connected
         if nx.number_connected_components(G) == 1:
             break
         if counter == 10:
-            print(f'{EnvString.split('-')} can not be built with only one component')
+            print(f"{EnvString.split('-')} cannot be built with a single connected component")
             break
     return env
 
