@@ -491,6 +491,7 @@ def link_curvature(env,Omega):
 
 # functions for ease of execution
 def setup_env(EnvString, edge_length, visualise=False):
+    counter = 0
     while True:
         env = gym.make(EnvString, size=edge_length)
         obs, info = env.reset()
@@ -506,6 +507,10 @@ def setup_env(EnvString, edge_length, visualise=False):
 
         # keep generating until the graph is connected
         if nx.number_connected_components(G) == 1:
+            break
+
+        if counter == 10:
+            print(f'{EnvString.split('-')[2]} can not be built with only one component')
             break
 
     A, index = graph_to_adjacency_matrix(graph, directed=False)
@@ -536,6 +541,7 @@ def setup_env(EnvString, edge_length, visualise=False):
 
 # Breaking up the above function
 def prep_env(EnvString, edge_length):
+    counter = 0
     while True:
         env = gym.make(EnvString, size=edge_length)
         obs, info = env.reset()
@@ -546,9 +552,12 @@ def prep_env(EnvString, edge_length):
             G.add_node(state)
             for nxt in neighbors.values():
                 G.add_edge(state, nxt)
-
+        counter +=1 
         # keep generating until the graph is connected
         if nx.number_connected_components(G) == 1:
+            break
+        if counter == 10:
+            print(f'{EnvString.split('-')} can not be built with only one component')
             break
     return env
 
