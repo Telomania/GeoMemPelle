@@ -2,6 +2,14 @@
 
 Runnable experiment scripts and generated artifacts for GeoMem.
 
+## Pelle's MiniGrid Workflows
+
+The two workflows share the categorical DG encoder and Lin sequence core in `geomem-models/src/geomem_models/lin_intrmotiv.py`.
+
+- [Standalone sensory prediction](experiments/minigrid_sensory_prediction.md): collect trajectories and train a supervised next-observation predictor without Sample Factory.
+- [Full APPO agent](experiments/geomem/README.md): adapt the IntrMotiv agent to MiniGrid while retaining Sample Factory and its separate encoder/worker learning paths.
+- [Research direction](../geomem-paper/reports/pelle_research_direction.md): hypothesis, comparison constraints, and pending curvature definitions.
+
 ## Owns
 
 - Benchmark and sweep scripts under `experiments/`.

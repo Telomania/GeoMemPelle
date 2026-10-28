@@ -3,7 +3,7 @@ tags:
   - geomem
   - report-index
 status: working
-updated: 2026-05-22
+updated: 2026-10-28
 ---
 
 # GeoMem Reports
@@ -12,6 +12,7 @@ This folder is the evaluation-work trail for GeoMem. Start with [[current_result
 
 ## Current Hubs
 
+- [[pelle_research_direction]]: current research direction with Pelle; discrete sensory prediction and the effective-curvature/reservoir-structure hypothesis.
 - [[project_idea_collaborator_summary]]: concise internal summary of the idea, novelty, and publication angle.
 - [[current_results_synthesis]]: current evidence, claims, limits, and next step.
 - [[paper_missing_parts]]: paper-completion checklist.

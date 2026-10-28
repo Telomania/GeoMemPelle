@@ -4,6 +4,7 @@ This root folder is now a paper-oriented workspace for the split GeoMem project.
 
 ## Start Here
 
+- `geomem-paper/reports/pelle_research_direction.md`: current MiniGrid/sensory-prediction direction and Pelle's two implementation workstreams.
 - `geomem-paper/manuscript/paper_draft.md`: current paper draft.
 - `geomem-paper/reports/current_results_synthesis.md`: current evidence and claim calibration.
 - `literature/reading-list.md`: canonical annotated reading list.

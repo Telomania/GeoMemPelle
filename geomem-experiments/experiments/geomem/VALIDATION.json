@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-28",
+  "interpretation": "Wiring and update verification only; no claim of task mastery, curvature relationship, or successful control transfer.",
+  "tests": {
+    "command": "PYTHONPATH=/tmp/geomem-minigrid-deps /home/xiaoxiong/miniforge3/envs/SF_git/bin/python -m unittest discover -s experiments/geomem/tests -v",
+    "passed": 4,
+    "coverage": [
+      "upstream/shared DG equivalence",
+      "batch-one vs minibatch immutable inference moments",
+      "additive impulse lifetime and nilpotency",
+      "single-step, sequence and packed replay equality",
+      "zero-state reset isolation",
+      "actor/value gradient blocked from DG",
+      "DG credit loss updates DG only; CA3 has no parameters"
+    ]
+  },
+  "training_command_common": "PYTHONPATH=/tmp/geomem-minigrid-deps /home/xiaoxiong/miniforge3/envs/SF_git/bin/python -m experiments.geomem.train --seed=0 --serial_mode=False --async_rl=True --num_workers=2 --num_envs_per_worker=2 --train_for_env_steps=512 --batch_size=64 --rollout=16 --recurrence=16 --train_dir=/tmp/geomem-appo --restart_behavior=overwrite --decorrelate_experience_max_seconds=0 --set_workers_cpu_affinity=False",
+  "training_command_suffixes": {
+    "async_random_final": "--experiment=async_random_final",
+    "frozen_final": "--experiment=frozen_final --shared_encoder_checkpoint=figures/minigrid_sensory_prediction_frozen_smoke/shared_encoder.pt --transfer_freeze_dg=True"
+  },
+  "runs": [
+    {
+      "experiment": "async_random_final",
+      "environment": "MiniGrid-Empty-Random-6x6-v0",
+      "seed": 0,
+      "async_rl": true,
+      "serial_mode": false,
+      "workers": 2,
+      "environments_per_worker": 2,
+      "requested_steps": 512,
+      "completed_steps": 704,
+      "optimizer_updates": 11,
+      "all_model_tensors_finite": true,
+      "dg_weight_max_abs_change": 0.0010638982057571411,
+      "dg_weight_generation": 11,
+      "dg_statistics_generation": 11,
+      "dg_normalization_updates": 11,
+      "decoder_weight_changed": true,
+      "run_dir": "/tmp/geomem-appo/async_random_final"
+    },
+    {
+      "experiment": "frozen_final",
+      "environment": "MiniGrid-Empty-Random-6x6-v0",
+      "seed": 0,
+      "async_rl": true,
+      "serial_mode": false,
+      "workers": 2,
+      "environments_per_worker": 2,
+      "requested_steps": 512,
+      "completed_steps": 640,
+      "optimizer_updates": 10,
+      "all_model_tensors_finite": true,
+      "dg_weight_max_abs_change": 0.0,
+      "dg_weight_generation": 1,
+      "dg_statistics_generation": 1,
+      "dg_normalization_updates": 1,
+      "decoder_weight_changed": true,
+      "run_dir": "/tmp/geomem-appo/frozen_final",
+      "exported_encoder_exactly_equal_to_initial_and_final": true,
+      "exported_encoder_tensor_count": 14,
+      "source_export": "geomem-experiments/figures/minigrid_sensory_prediction_frozen_smoke/shared_encoder.pt"
+    }
+  ],
+  "runtime_note": "PyTorch shared memory was denied in sandbox; actual training succeeded with approved local shared-memory/process access. Raw runtime outputs are temporary and not committed."
+}
