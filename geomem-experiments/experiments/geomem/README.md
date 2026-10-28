@@ -1,6 +1,6 @@
 # Pelle: MiniGrid with the Lin/IntrMotiv APPO agent
 
-This is the **full reinforcement-learning path**: Sample Factory APPO, the actual IntrMotiv actor–critic/learner, and the shared Lin sequence backbone. The [small sensory-prediction task](../MINIGRID_SENSORY_PREDICTION.md) imports the same encoder and core, replacing the policy/value heads and learning objective.
+This is the **full reinforcement-learning path**: Sample Factory APPO, the actual IntrMotiv actor–critic/learner, and the shared Lin sequence backbone. The [small sensory-prediction task](../minigrid_sensory_prediction.md) imports the same encoder and core, replacing the policy/value heads and learning objective.
 
 ## Run
 
@@ -50,7 +50,7 @@ Change `--Hippo_n_feature`, `--Hippo_R`, `--Hippo_L`, or `--DG_BN_intercept` for
 | DG normalization | Same running moments for actor and learner; no inference updates. After each optimizer step, source learner normalizes DG rows and calibrates moments from valid cached inputs, under the policy lock. |
 | Policy/value MLPs | APPO clipped policy loss, value loss and entropy term. Default `ppo_dg_gradient=stop` blocks this loss from changing DG. |
 
-The default worker uses **intrinsic temporal-transition rewards**, preserving the flat IntrMotiv setting; MiniGrid's goal reward is recorded separately. To train the worker on the environment's reward, use `--advantage_reward_source=external --use_external=True --use_internal=False`; DG still uses its temporal objective. Optional HRL/graph managers, recruitment, contextual feedback, DMLab sensors and robot telemetry are outside this baseline.
+The default worker uses **intrinsic temporal-transition rewards**, preserving the flat IntrMotiv setting; MiniGrid's goal reward is recorded separately. To train the worker on the environment's reward, use `--advantage_reward_source=external --use_external=True --use_internal=False`; DG still uses its temporal objective. Optional HRL/graph managers, structural row recruitment, contextual feedback, DMLab sensors and robot telemetry are outside this baseline.
 
 Prediction uses the same routing and recurrence, but its default cross-entropy trains DG directly and adds the candidate action only at the prediction readout. This objective and its fixed collection policy differ from APPO. Matching architecture alone does not prove transfer of a curvature–performance relationship. For a stricter representation control, load the prediction export after SF initialization and freeze both DG weights and moments:
 
