@@ -1,6 +1,7 @@
 ---
 tags: [geomem, report, synthesis, current]
 date: 2026-05-22
+updated: 2026-10-28
 status: current
 related:
   - "[[README|Reports index]]"
@@ -10,7 +11,7 @@ related:
 
 # Current Results Synthesis
 
-Date: 2026-05-22
+Earlier benchmark synthesis: 2026-05-22. Current research direction updated: 2026-10-28.
 
 ## Reading Path
 
@@ -41,6 +42,8 @@ The current paper-facing organization uses these three figures as the main sweep
 
 ## Current Scientific Status
 
+The current next stage (2026-10-28) is [Pelle's discrete sensory-prediction study](pelle_research_direction.md): start with MiniGrid and test whether task/environment measures, ideally effective curvature, predict useful reservoir normality/nonnormality. Pelle has identified candidate curvature measures, but their definitions and the proposed relationship are not yet established in this report. The results below remain evidence from the earlier task families, not validation of this new hypothesis.
+
 The project has moved from a broad verbal theory to a lightweight empirical pipeline:
 
 1. effective commutativity;
@@ -51,6 +54,23 @@ The project has moved from a broad verbal theory to a lightweight empirical pipe
 6. multi-goal lightweight robustness tests.
 
 Together, these support the central claim that memory architecture should depend on how task geometry and input format determine history compressibility.
+
+## MiniGrid Infrastructure Verification
+
+The 2026-10-28 [standalone sensory-prediction pipeline](../../geomem-experiments/experiments/minigrid_sensory_prediction.md) uses the same categorical DG encoder and fixed Lin sequence core as the [APPO adaptation](../../geomem-experiments/experiments/geomem/README.md). The supervised head predicts the next observation given the current representation and selected action. The full agent retains Sample Factory and IntrMotiv's separate worker/encoder objectives. Matching architecture therefore does not imply matching learning; exported encoder weights and normalization moments support a frozen-representation control.
+
+The initial supervised execution checks use `MiniGrid-Empty-Random-6x6-v0`, four training episodes (96 transitions), two held-out episodes (42 transitions), and two epochs. Both learned-DG and frozen-DG runs completed. The complete default supervised configuration also completed. These are software checks, not a curvature study or evidence of a consistent sequence-memory advantage.
+
+| Encoder update | Predictor | Held-out cross-entropy | Token accuracy | Changed-token accuracy |
+| --- | --- | ---: | ---: | ---: |
+| Prediction gradients | Memory reset every step | 0.238866 | 0.903466 | 0.451923 |
+| Prediction gradients | Lin sequence | 0.253712 | 0.879819 | 0.460165 |
+| Frozen after calibration | Memory reset every step | 0.245969 | 0.905248 | 0.429945 |
+| Frozen after calibration | Lin sequence | 0.245824 | 0.905248 | 0.429945 |
+
+Persistence token accuracy is 0.882086; 0.117914 of target tokens change. All predictors share the held-out episodes. The [learned-DG metrics](../../geomem-experiments/figures/minigrid_sensory_prediction_smoke/metrics.csv) and [frozen-DG metrics](../../geomem-experiments/figures/minigrid_sensory_prediction_frozen_smoke/metrics.csv) also contain object/color/state and whole-cell accuracy; neighboring `run.json` files record configuration, seeds, versions, and the fixed CA3 matrix diagnostics. Legacy navigation success and policy ambiguity are not sensory-prediction metrics and are not claimed for these runs. Curvature measures and a controlled normality sweep remain pending.
+
+The full APPO execution check used two asynchronous workers with two MiniGrid environments each. The learned-DG run completed 704 steps and 11 optimizer updates with finite tensors, changed DG/decoder weights, and synchronized DG weight/statistics generations. A frozen-transfer run completed 640 steps and 10 updates: all 14 exported encoder tensors remained exactly equal to the supervised export while decoder weights changed. Batch-sized collection can exceed the requested 512 steps. [Validation commands and records](../../geomem-experiments/experiments/geomem/VALIDATION.json) and [source provenance](../../geomem-experiments/experiments/geomem/PROVENANCE.json) document these checks. The 26 environment, seven supervised, and four shared-backbone tests also pass; this verifies implementation and transfer mechanics, not a learned navigation result.
 
 ## Result 1: Boundary Effects Are Real But Separatable
 

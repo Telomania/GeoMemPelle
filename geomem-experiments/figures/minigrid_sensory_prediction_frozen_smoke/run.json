@@ -1,0 +1,50 @@
+{
+  "arguments": {
+    "env": "MiniGrid-Empty-Random-6x6-v0",
+    "train_episodes": 4,
+    "test_episodes": 2,
+    "max_steps": 24,
+    "epochs": 2,
+    "features": 16,
+    "repeat": 2,
+    "length": 8,
+    "threshold": 2.0,
+    "encoder_learning": "frozen",
+    "learning_rate": 0.003,
+    "seed": 0,
+    "actions": [
+      0,
+      1,
+      2
+    ],
+    "output_dir": "geomem-experiments/figures/minigrid_sensory_prediction_frozen_smoke"
+  },
+  "versions": {
+    "torch": "2.7.1",
+    "numpy": "1.26.4",
+    "gymnasium": "0.29.1",
+    "minigrid": "2.3.1"
+  },
+  "train_seeds": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "test_seeds": [
+    4,
+    5
+  ],
+  "train_transitions": 96,
+  "test_transitions": 42,
+  "core_diagnostics": {
+    "normality_commutator": 0.04419417306780815,
+    "spectral_norm": 1.0,
+    "spectral_radius": 0.0,
+    "frobenius_norm": 11.313708305358887
+  },
+  "trainable_parameters": {
+    "memoryless": 1109360,
+    "lin_sequence": 1109360
+  }
+}

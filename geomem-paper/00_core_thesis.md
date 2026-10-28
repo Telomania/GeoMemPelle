@@ -33,7 +33,7 @@ Use a small set of operational variables:
 - Loop closure reliability: whether returning paths close accurately under local metric integration.
 - Bottleneck and branching structure: whether future choices depend on route history.
 
-Graph hyperbolicity, local dimensionality, and curvature can be used as secondary analytic measures.
+The current empirical stage with Pelle prioritizes candidate effective-curvature measures as potential predictors of useful reservoir normality/nonnormality. Begin with standalone supervised sensory prediction in discrete environments such as MiniGrid, alongside a full Lin/IntrMotiv MiniGrid adaptation retaining APPO and Sample Factory. This prioritization is a hypothesis to test, not evidence that curvature subsumes the other diagnostics. See [the research direction and implementation scopes](reports/pelle_research_direction.md).
 
 The geometry diagnostics should broaden from exact trace commutativity to measures usable on transition graphs and simulators: local action reorderability, the ambiguity left after a coordinate-like path summary, and the policy-relevant route residual after that summary is available.
 

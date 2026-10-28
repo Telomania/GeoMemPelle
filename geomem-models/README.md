@@ -16,6 +16,8 @@ Reusable model and temporal-memory code for GeoMem.
 
 This package depends on NumPy and should avoid importing experiment scripts. It may use types from `geomem-env` only when needed.
 
+The optional `geomem_models.lin_intrmotiv` module additionally requires PyTorch. It owns the shared categorical MiniGrid DG encoder and fixed Lin sequence core used by both [standalone sensory prediction](../geomem-experiments/experiments/minigrid_sensory_prediction.md) and the [Sample Factory APPO adaptation](../geomem-experiments/experiments/geomem/README.md). It does not import Sample Factory; the existing NumPy modules remain independently usable.
+
 ## Relationship To Experiments
 
 Experiment scripts should own datasets, sweeps, plots, and result files. Reusable model families, readouts, recurrent matrix analyses, temporal bases, and representation encoders should live here so benchmarks can share them without duplicating code.

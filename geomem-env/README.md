@@ -1,5 +1,7 @@
 # geomem-env
 
+For Pelle's MiniGrid experiments, `geomem_env.gym_trajectories` provides a small Gym/Gymnasium-compatible offline collector with explicit episode boundaries and action-aligned sensory targets. See the [standalone prediction guide](../geomem-experiments/experiments/minigrid_sensory_prediction.md).
+
 Reusable environment and task-geometry code for GeoMem.
 
 ## Owns
