@@ -1,6 +1,7 @@
 ---
 tags: [geomem, report, synthesis, current]
 date: 2026-05-22
+updated: 2026-10-28
 status: current
 related:
   - "[[README|Reports index]]"
@@ -10,7 +11,7 @@ related:
 
 # Current Results Synthesis
 
-Date: 2026-05-22
+Earlier benchmark synthesis: 2026-05-22. Current research direction updated: 2026-10-28.
 
 ## Reading Path
 
@@ -40,6 +41,8 @@ The current paper-facing organization uses these three figures as the main sweep
 ![](../../geomem-experiments/figures/delay_span_sweep.svg)
 
 ## Current Scientific Status
+
+The current next stage (2026-10-28) is [Pelle's discrete sensory-prediction study](pelle_research_direction.md): start with MiniGrid and test whether task/environment measures, ideally effective curvature, predict useful reservoir normality/nonnormality. Pelle has identified candidate curvature measures, but their definitions and the proposed relationship are not yet established in this report. The results below remain evidence from the earlier task families, not validation of this new hypothesis.
 
 The project has moved from a broad verbal theory to a lightweight empirical pipeline:
 
