@@ -61,7 +61,7 @@ def visualize_network(
     cmap='coolwarm',
     vmin=None,
     vmax=None,
-    node_size=120,
+    node_size=30,
     width=1.5,
     figsize=(8, 8),
     outpath=None,
