@@ -1,9 +1,9 @@
 from __future__ import annotations
+
 import networkx as nx
 import matplotlib.pyplot as plt
 from random import Random
 import numpy as np
-
 
 from minigrid.core.constants import COLOR_NAMES
 from minigrid.core.grid import Grid
@@ -14,6 +14,42 @@ from minigrid.minigrid_env import MiniGridEnv
 import gymnasium as gym
 import matplotlib as mpl
 from matplotlib.patches import Rectangle
+
+DIRECTION_VECTORS = {
+    0: (1, 0),    # right
+    1: (0, 1),    # down
+    2: (-1, 0),   # left
+    3: (0, -1),   # up
+}
+
+ORIENTATION_OFFSETS = {
+    0: (0.22, 0.00),
+    1: (0.00, 0.22),
+    2: (-0.22, 0.00),
+    3: (0.00, -0.22),
+}
+
+
+def _tile_state(state):
+    if isinstance(state, tuple) and len(state) >= 2:
+        return (state[0], state[1])
+    return tuple(state)
+
+
+def _project_orientation_graph(graph):
+    """Collapse the 4-state-per-tile orientation graph to a tile-only undirected graph."""
+    tile_graph = {}
+    for state, neighbors in graph.items():
+        tile = _tile_state(state)
+        tile_graph.setdefault(tile, set())
+        for nxt in neighbors.values():
+            nxt_tile = _tile_state(nxt)
+            if nxt_tile == tile:
+                continue
+            tile_graph[tile].add(nxt_tile)
+            tile_graph.setdefault(nxt_tile, set()).add(tile)
+    return {tile: {nbr: nbr for nbr in sorted(neighbors)} for tile, neighbors in tile_graph.items()}
+
 
 def visualize_network(
     G,
@@ -32,32 +68,12 @@ def visualize_network(
     title="Maze Graph",
 ):
     """
-    Visualize a maze graph with states as coordinates.
+    Visualize a maze graph.
 
-    Parameters
-    ----------
-    G : dict or networkx.Graph
-        Maze graph, either as:
-            {state: {action: next_state, ...}}
-        or as a NetworkX graph whose nodes are state tuples (x, y).
-
-    node_values : dict, list, tuple, np.ndarray, or None
-        If dict: {state: value}
-        If array-like: values[i] corresponds to index[state]
-        If None: use zeros.
-
-    edge_values : dict, np.ndarray, or None
-        If dict: {(u, v): value}
-        If array-like: edge matrix indexed by rows/cols of graph index.
-        If None: no edge colouring.
-
-    index : dict or None
-        Mapping {state: i}. Required if node_values / edge_values are array-like.
+    Accepts either tile nodes like (x, y) or orientation-expanded nodes like (x, y, heading).
+    If the graph contains 4 heading states per tile, they are positioned in a tiny cluster around
+    that tile with a consistent offset by heading.
     """
-
-    # ------------------------------
-    # Build NetworkX graph
-    # ------------------------------
     if isinstance(G, dict):
         G_nx = nx.Graph()
         for state, neighbors in G.items():
@@ -67,24 +83,24 @@ def visualize_network(
     else:
         G_nx = G
 
-    # Need state coordinates
-    states = []
-    for n in G_nx.nodes():
-        if isinstance(n, tuple) and len(n) == 2:
-            states.append(n)
-
+    states = list(G_nx.nodes())
     if not states:
-        raise ValueError("Graph nodes must be 2D state tuples like (x, y).")
+        raise ValueError("Graph is empty.")
+
+    if all(isinstance(s, tuple) and len(s) == 2 for s in states):
+        pos = {s: (float(s[0]), float(s[1])) for s in states}
+    elif all(isinstance(s, tuple) and len(s) == 3 for s in states):
+        pos = {}
+        for s in states:
+            x, y, heading = s
+            dx, dy = ORIENTATION_OFFSETS.get(heading % 4, (0.0, 0.0))
+            pos[s] = (float(x) + dx, float(y) + dy)
+    else:
+        raise ValueError("Graph nodes must be 2D or 3D tuples like (x, y) or (x, y, heading).")
 
     if index is None:
         index = {s: i for i, s in enumerate(sorted(states))}
 
-    # Position is just the state coordinates
-    pos = {s: (float(s[0]), float(s[1])) for s in states}
-
-    # ------------------------------
-    # Normalize node values
-    # ------------------------------
     if node_values is None:
         node_values_dict = {s: 0.0 for s in states}
     elif isinstance(node_values, dict):
@@ -92,15 +108,11 @@ def visualize_network(
     else:
         node_values_dict = {s: node_values[index[s]] for s in states}
 
-    # ------------------------------
-    # Normalize edge values
-    # ------------------------------
     if edge_values is None:
         edge_values_dict = {}
     elif isinstance(edge_values, dict):
         edge_values_dict = edge_values
     else:
-        # assume edge_values is an array-like matrix shaped like (n, n)
         edge_values_dict = {}
         inv = {i: s for s, i in index.items()}
         for i in range(edge_values.shape[0]):
@@ -111,12 +123,9 @@ def visualize_network(
                 if val != 0:
                     edge_values_dict[(inv[i], inv[j])] = val
 
-    # ------------------------------
-    # Shared colormap range
-    # ------------------------------
     vals = list(node_values_dict.values()) + [v for v in edge_values_dict.values()]
     if vals:
-        vabs = max(abs(min(vals)),abs(max(vals)))
+        vabs = max(abs(min(vals)), abs(max(vals)))
         vmin = -vabs if vmin is None else vmin
         vmax = vabs if vmax is None else vmax
     else:
@@ -125,12 +134,8 @@ def visualize_network(
     norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
     cmap_obj = plt.get_cmap(cmap)
 
-    # ------------------------------
-    # Draw
-    # ------------------------------
     fig, ax = plt.subplots(figsize=figsize)
 
-    # background grid
     xs = [p[0] for p in pos.values()]
     ys = [p[1] for p in pos.values()]
     x_min, x_max = min(xs), max(xs)
@@ -150,7 +155,6 @@ def visualize_network(
                     )
                 )
 
-    # draw edges
     edge_colors = []
     edge_list = []
     for u, v in G_nx.edges():
@@ -177,7 +181,6 @@ def visualize_network(
             arrows=False,
         )
 
-    # draw nodes
     node_colors = [cmap_obj(norm(float(node_values_dict.get(n, vmin)))) for n in G_nx.nodes()]
     nx.draw_networkx_nodes(
         G_nx,
@@ -202,7 +205,6 @@ def visualize_network(
     cbar = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("Curvature")
 
-
     plt.tight_layout()
 
     if outpath is not None:
@@ -213,14 +215,20 @@ def visualize_network(
 
     plt.close(fig)
 
-def minigrid_maze_to_graph(env):
+
+def minigrid_maze_to_graph(env, *, include_orientation=True, undirected=True):
     """
-    Convert a MiniGrid maze env into a graph:
-        graph[state] = {action: next_state, ...}
-    where state is (x, y) and action is one of ("L", "R", "U", "D").
+    Convert a MiniGrid maze env into a graph.
+
+    With 4 heading states per tile, nodes are (x, y, heading) and actions are:
+        - "L": turn left
+        - "R": turn right
+        - "F": move forward
+
+    The user request here is to treat the graph as undirected at the state level too, so we add
+    the reverse edges for every valid transition when `undirected=True`.
     """
     base_env = env.unwrapped if hasattr(env, "unwrapped") else env
-
     grid = base_env.grid
     width, height = grid.width, grid.height
 
@@ -229,40 +237,51 @@ def minigrid_maze_to_graph(env):
     for x in range(width):
         for y in range(height):
             cell = grid.get(x, y)
-
             if cell is not None and getattr(cell, "type", None) == "wall":
                 continue
 
-            state = (x, y)
-            graph[state] = {}
+            if include_orientation:
+                for heading in range(4):
+                    state = (x, y, heading)
+                    graph[state] = {}
 
-            for action, (dx, dy) in {
-                "L": (0, -1),
-                "R": (0, 1),
-                "U": (-1, 0),
-                "D": (1, 0),
-            }.items():
-                nx, ny = x + dx, y + dy
+                    left_heading = (heading - 1) % 4
+                    right_heading = (heading + 1) % 4
+                    graph[state]["L"] = (x, y, left_heading)
+                    graph[state]["R"] = (x, y, right_heading)
 
-                if not (0 <= nx < width and 0 <= ny < height):
-                    continue
+                    dx, dy = DIRECTION_VECTORS[heading]
+                    nx_coord, ny_coord = x + dx, y + dy
+                    if 0 <= nx_coord < width and 0 <= ny_coord < height:
+                        next_cell = grid.get(nx_coord, ny_coord)
+                        if next_cell is None or getattr(next_cell, "type", None) != "wall":
+                            graph[state]["F"] = (nx_coord, ny_coord, heading)
+            else:
+                state = (x, y)
+                graph[state] = {}
+                for dx, dy in DIRECTION_VECTORS.values():
+                    nx_coord, ny_coord = x + dx, y + dy
+                    if not (0 <= nx_coord < width and 0 <= ny_coord < height):
+                        continue
+                    next_cell = grid.get(nx_coord, ny_coord)
+                    if next_cell is not None and getattr(next_cell, "type", None) == "wall":
+                        continue
+                    graph[state][(nx_coord, ny_coord)] = (nx_coord, ny_coord)
 
-                next_cell = grid.get(nx, ny)
-                if next_cell is not None and getattr(next_cell, "type", None) == "wall":
-                    continue
-
-                graph[state][action] = (nx, ny)
+    if undirected:
+        undirected_graph = {state: dict(neighbors) for state, neighbors in graph.items()}
+        for state, neighbors in list(graph.items()):
+            for _, nxt in neighbors.items():
+                undirected_graph.setdefault(nxt, {})
+                undirected_graph[nxt].setdefault(state, state)
+                undirected_graph[state].setdefault(nxt, nxt)
+        graph = undirected_graph
 
     return graph
 
-def graph_to_adjacency_matrix(graph, directed=False):
-    """
-    Convert a graph dict to a NumPy adjacency matrix.
 
-    Returns:
-        A: np.ndarray of shape (n, n)
-        index: dict mapping state -> row/column index
-    """
+def graph_to_adjacency_matrix(graph, directed=False):
+    """Convert a graph dict to a NumPy adjacency matrix."""
     nodes = sorted(graph.keys())
     index = {node: i for i, node in enumerate(nodes)}
     n = len(nodes)
@@ -281,33 +300,40 @@ def graph_to_adjacency_matrix(graph, directed=False):
 
     return A, index
 
+
 def graph_to_geomem_dict(graph):
     states = tuple(sorted(graph.keys()))
-    actions = ("L", "R", "U", "D")
+    actions = tuple(
+        sorted(
+            {action for edges in graph.values() for action in edges.keys()},
+            key=lambda a: ("L", "R", "F").index(a) if a in ("L", "R", "F") else 999,
+        )
+    ) or ("L", "R", "F")
 
     transition = {}
     valid = set()
 
     for state in states:
         for action in actions:
+            nxt = graph.get(state, {}).get(action, state)
+            transition[(state, action)] = nxt
             if action in graph.get(state, {}):
-                nxt = graph[state][action]
-                transition[(state, action)] = nxt
                 valid.add((state, action))
-            else:
-                transition[(state, action)] = state
 
     return {
         "states": states,
         "actions": actions,
         "transition": transition,
-        "valid": frozenset(valid)
+        "valid": frozenset(valid),
     }
 
-# Measures Commutativty
+
+# Measures Commutativity
+
 def action_strings(actions, length, rng, n):
     """Return n random tuples of actions of given length."""
     return [tuple(rng.choice(actions) for _ in range(length)) for _ in range(n)]
+
 
 def swapped_pairs(seq):
     """Return list of (original, swapped) tuples by swapping two distinct indices."""
@@ -316,26 +342,16 @@ def swapped_pairs(seq):
     for i in range(L):
         for j in range(i + 1, L):
             if seq[i] == seq[j]:
-                # swapping identical actions yields same sequence; skip as repo does
                 continue
             swapped = list(seq)
             swapped[i], swapped[j] = swapped[j], swapped[i]
             pairs.append((tuple(seq), tuple(swapped)))
     return pairs
 
+
 def effective_commutativity(env, *, length=4, n_sequences=200, seed=1, valid_only=False, equivalent=None):
     """
     Estimate fraction of sampled action-order swaps that preserve final state.
-
-    - env: Environment instance (must implement rollout(start, actions) -> (state, valid_flag)
-      and provide env.states and env.actions).
-    - length: length of sampled action strings
-    - n_sequences: number of sampled sequences
-    - seed: RNG seed
-    - valid_only: if True, count only swaps where both orders avoid invalid transitions
-    - equivalent: callable(state_a, state_b) -> bool (defaults to equality)
-
-    Returns a float in [0,1] or float('nan') if no pairs were considered.
     """
     rng = Random(seed)
     if equivalent is None:
@@ -345,14 +361,12 @@ def effective_commutativity(env, *, length=4, n_sequences=200, seed=1, valid_onl
     preserved = 0
 
     starts = list(env.states)
-    # mirror repo behavior: if valid_only and env.max_depth present, filter starts so length won't exceed max depth
     try:
         if valid_only and getattr(env, "max_depth", None) is not None:
             starts = [state for state in starts if len(state) + length <= env.max_depth]
             if not starts:
                 return float("nan")
     except Exception:
-        # if len(state) isn't meaningful for this env, ignore filtering
         pass
 
     for seq in action_strings(env.actions, length, rng, n_sequences):
@@ -367,7 +381,6 @@ def effective_commutativity(env, *, length=4, n_sequences=200, seed=1, valid_onl
 
     return preserved / total if total else float("nan")
 
-    # Helper class
 
 class DictEnvAdapter:
     def __init__(self, env_dict):
@@ -400,11 +413,9 @@ class DictEnvAdapter:
             state = self.transition[(state, action)]
         return state, valid
 
+
 def pairwise_commutator_matrix(env, *, valid_only=False):
-    """
-    Compute Pr[AB(s) == BA(s)] for every (A,B) pair, estimated exactly over all env.states.
-    Returns a dict keyed by (action1, action2) -> fraction (float).
-    """
+    """Compute Pr[AB(s) == BA(s)] for every (A,B) pair."""
     matrix = {}
     for a in env.actions:
         for b in env.actions:
@@ -420,22 +431,20 @@ def pairwise_commutator_matrix(env, *, valid_only=False):
             matrix[(a, b)] = preserved / total if total else float("nan")
     return matrix
 
-# Measures effective resistance
-def effective_resistance_adj(A):
-    D = np.diag(A.sum(axis=1)) # diagonal matrix
-    Q = D - A # Laplacian matrix
 
+def effective_resistance_adj(A):
+    D = np.diag(A.sum(axis=1))
+    Q = D - A
     Q_pseudo_inv = np.linalg.pinv(Q)
     q_diag = np.diag(Q_pseudo_inv)
-    Omega = q_diag[:, None] + q_diag[None,:] - 2 * Q_pseudo_inv
-
-    np.fill_diagonal(Omega,0.0)
+    Omega = q_diag[:, None] + q_diag[None, :] - 2 * Q_pseudo_inv
+    np.fill_diagonal(Omega, 0.0)
     return Omega
+
 
 def get_goal_state(env):
     base_env = env.unwrapped if hasattr(env, "unwrapped") else env
 
-    # Try common names
     for attr in ["goal_pos", "goal_position", "goal_coords", "goal", "target_pos", "target"]:
         if hasattr(base_env, attr):
             value = getattr(base_env, attr)
@@ -447,69 +456,64 @@ def get_goal_state(env):
                 if "x" in value and "y" in value:
                     return (value["x"], value["y"])
 
-    # Fallback: scan grid for a goal object
     grid = base_env.grid
     for x in range(grid.width):
         for y in range(grid.height):
             cell = grid.get(x, y)
-            if cell is not None:
-                # Works for many Minigrid-like cells
-                if getattr(cell, "type", None) == "goal" or "goal" in type(cell).__name__.lower():
-                    return (x, y)
+            if cell is not None and (getattr(cell, "type", None) == "goal" or "goal" in type(cell).__name__.lower()):
+                return (x, y)
 
     return None
 
-def node_curvature(env,Omega): # want to input relative resitance, in unweighted graph = effective resistance
+
+def node_curvature(env, Omega):
     starts = list(env.states)
-    state_lookup = {state:index for index,state in enumerate(starts)}
+    state_lookup = {state: index for index, state in enumerate(starts)}
     p = np.zeros(Omega.shape[0])
     for i in range(Omega.shape[0]):
         s = env.states[i]
-        states = [env.step(s,a) for a in env.actions]
+        states = [env.step(s, a) for a in env.actions]
         states_idx = [state_lookup[state] for state in states]
         for j in set(states_idx):
-            p[i] += 0.5*Omega[i,j]
+            p[i] += 0.5 * Omega[i, j]
     p = 1 - p
     return p
 
-def link_curvature(env,Omega):
 
-    p = node_curvature(env,Omega)
+def link_curvature(env, Omega):
+    p = node_curvature(env, Omega)
     k = np.empty(Omega.shape)
     k[:] = np.nan
     starts = list(env.states)
-    state_lookup = {state:index for index,state in enumerate(starts)}
+    state_lookup = {state: index for index, state in enumerate(starts)}
 
     for i in range(Omega.shape[0]):
-            s = env.states[i]
-            states = [env.step(s,a) for a in env.actions]
-            states_idx = [state_lookup[state] for state in states]
-            for j in set(states_idx):
-                  if i ==j: continue
-                  k[i,j] = 2*(p[i] + p[j])/Omega[i,j]
+        s = env.states[i]
+        states = [env.step(s, a) for a in env.actions]
+        states_idx = [state_lookup[state] for state in states]
+        for j in set(states_idx):
+            if i == j:
+                continue
+            k[i, j] = 2 * (p[i] + p[j]) / Omega[i, j]
     return k
 
-# functions for ease of execution
+
 def setup_env(EnvString, edge_length, visualise=False):
     while True:
         env = gym.make(EnvString, size=edge_length)
-        obs, info = env.reset()
+        _, _ = env.reset()
 
-        graph = minigrid_maze_to_graph(env)
-
-        # build a NetworkX graph from the maze graph dict
+        graph = minigrid_maze_to_graph(env, undirected=True)
         G = nx.Graph()
         for state, neighbors in graph.items():
             G.add_node(state)
             for nxt in neighbors.values():
                 G.add_edge(state, nxt)
 
-        # keep generating until the graph is connected
         if nx.number_connected_components(G) == 1:
             break
 
     A, index = graph_to_adjacency_matrix(graph, directed=False)
-
     geomem_dict = graph_to_geomem_dict(graph)
     env_adapt = DictEnvAdapter(geomem_dict)
 
@@ -523,38 +527,36 @@ def setup_env(EnvString, edge_length, visualise=False):
     mean_link_cur = np.nanmean(link_cur)
 
     if visualise:
-        G_vis = nx.DiGraph()
+        G_vis = nx.Graph()
         for state, neighbors in graph.items():
             G_vis.add_node(state)
-            for action, nxt in neighbors.items():
-                G_vis.add_edge(state, nxt, action=action)
+            for _, nxt in neighbors.items():
+                G_vis.add_edge(state, nxt)
 
         index_state = {state: i for i, state in enumerate(sorted(graph.keys()))}
-        visualize_network(G_vis, node_cur, link_cur, index=index_state,title=EnvString.split('-')[2])
+        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[2])
 
     return raw_commutativity, valid_commutativity, mean_link_cur
 
-# Breaking up the above function
+
 def prep_env(EnvString, edge_length):
     while True:
         env = gym.make(EnvString, size=edge_length)
-        obs, info = env.reset()
-        graph = minigrid_maze_to_graph(env)
-        # build a NetworkX graph from the maze graph dict
+        _, _ = env.reset()
+        graph = minigrid_maze_to_graph(env, undirected=True)
         G = nx.Graph()
         for state, neighbors in graph.items():
             G.add_node(state)
             for nxt in neighbors.values():
                 G.add_edge(state, nxt)
 
-        # keep generating until the graph is connected
         if nx.number_connected_components(G) == 1:
             break
     return env
 
 
-def measures_from_env(env,EnvString,visualise=False):
-    graph = minigrid_maze_to_graph(env)
+def measures_from_env(env, EnvString, visualise=False):
+    graph = minigrid_maze_to_graph(env, undirected=True)
     geomem_dict = graph_to_geomem_dict(graph)
     env_adapt = DictEnvAdapter(geomem_dict)
 
@@ -562,7 +564,6 @@ def measures_from_env(env,EnvString,visualise=False):
     valid_commutativity = effective_commutativity(env_adapt, valid_only=True)
 
     A, index = graph_to_adjacency_matrix(graph, directed=False)
-
     eff_res = effective_resistance_adj(A)
     link_cur = link_curvature(env_adapt, eff_res)
     node_cur = node_curvature(env_adapt, eff_res)
@@ -570,13 +571,57 @@ def measures_from_env(env,EnvString,visualise=False):
     mean_link_cur = np.nanmean(link_cur)
 
     if visualise:
-        G_vis = nx.DiGraph()
+        G_vis = nx.Graph()
         for state, neighbors in graph.items():
             G_vis.add_node(state)
-            for action, nxt in neighbors.items():
-                G_vis.add_edge(state, nxt, action=action)
+            for _, nxt in neighbors.items():
+                G_vis.add_edge(state, nxt)
 
         index_state = {state: i for i, state in enumerate(sorted(graph.keys()))}
-        visualize_network(G_vis, node_cur, link_cur, index=index_state,title=EnvString.split('-')[2])
+        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[2])
 
     return raw_commutativity, valid_commutativity, mean_link_cur
+
+
+def make_env(EnvString, edge_length=10, render_mode=None):
+    while True:
+        env = gym.make(EnvString, size=edge_length, render_mode=render_mode)
+        _, _ = env.reset()
+        graph = minigrid_maze_to_graph(env, undirected=True)
+        G = nx.Graph()
+        for state, neighbors in graph.items():
+            G.add_node(state)
+            for nxt in neighbors.values():
+                G.add_edge(state, nxt)
+
+        if nx.number_connected_components(G) == 1:
+            break
+    return env
+
+
+def get_measure_env(env, EnvString, visualise=False):
+    return measures_from_env(env, EnvString, visualise=visualise)
+
+
+def tile_graph_from_orientation_graph(graph):
+    return _project_orientation_graph(graph)
+
+
+__all__ = [
+    "visualize_network",
+    "minigrid_maze_to_graph",
+    "graph_to_adjacency_matrix",
+    "graph_to_geomem_dict",
+    "tile_graph_from_orientation_graph",
+    "DictEnvAdapter",
+    "effective_commutativity",
+    "pairwise_commutator_matrix",
+    "effective_resistance_adj",
+    "node_curvature",
+    "link_curvature",
+    "setup_env",
+    "prep_env",
+    "measures_from_env",
+    "make_env",
+    "get_measure_env",
+]
