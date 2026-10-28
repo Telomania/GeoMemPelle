@@ -51,7 +51,7 @@ class SensoryPredictor(nn.Module):
             representation = representation[:, 0, :]
         else:
             # Identical encoder, core and head, but reset memory before EACH step.
-            representation, _ = self.core(encoded, self.core.initial_state(len(images)))
+            representation, _ = self.core(encoded, self.core.initial_state(len(images), encoded.device).to(encoded))
         action = F.one_hot(actions, self.n_actions).float()
         return self.head(torch.cat((representation, action), dim=-1))
 
@@ -87,6 +87,10 @@ def fit(model: SensoryPredictor, episodes: list[tuple[torch.Tensor, torch.Tensor
             loss.backward()
             optimizer.step()
             if model.encoder_learning == "prediction":
+                # IntrMotiv's unit-row projection precedes post-step calibration.
+                with torch.no_grad():
+                    weight = projection.linear.weight
+                    weight.div_(weight.norm(dim=1, keepdim=True).clamp_min(1e-6))
                 if len(images) < 2:
                     # A one-step episode is valid data, but cannot calibrate variance.
                     with torch.no_grad(), projection.running_stats_update(True):
@@ -178,7 +182,7 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with (args.output_dir / "metrics.csv").open("w", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     w = models["lin_sequence"].core.recurrent_matrix()
@@ -202,7 +206,16 @@ def main() -> None:
         for field in ("observations", "actions", "terminated", "truncated", "seed"):
             arrays[f"episode_{index}_{field}"] = np.asarray(getattr(episode, field))
     np.savez_compressed(args.output_dir / "trajectories.npz", **arrays)
-    torch.save({name: model.state_dict() for name, model in models.items()}, args.output_dir / "models.pt")
+    representation = {
+        "encoder": models["lin_sequence"].encoder.state_dict(),
+        "representation_config": {
+            "image_shape": list(train[0].observations.shape[1:]), "features": args.features,
+            "repeat": args.repeat, "length": args.length, "threshold": args.threshold,
+        },
+        "encoder_learning": args.encoder_learning,
+    }
+    torch.save({**{name: model.state_dict() for name, model in models.items()}, **representation}, args.output_dir / "models.pt")
+    torch.save(representation, args.output_dir / "shared_encoder.pt")
     print(f"Saved metrics, configuration, trajectories, and weights to {args.output_dir}")
 
 

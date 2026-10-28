@@ -38,6 +38,19 @@ The minimal version must use an encoder and recurrent core comparable to the ful
 
 Do not use a generic reservoir as the minimal default while the full agent uses a different Lin/IntrMotiv encoder and core. Future recurrent-matrix interventions should be available in both paths with the same definitions. Record which parameters each objective updates: shared architecture alone does not guarantee matched learned representations. Keep learning objectives, encoder update routes, and offline versus policy-driven data collection explicit, and use matched or frozen-encoder controls when isolating core effects. Transfer of a finding is a hypothesis until checked in the full RL setting.
 
+## Reuse and environment extensibility
+
+Reuse Sample Factory's existing MiniGrid integration wherever compatible with the shared sensory interface. Check existing factories, wrappers, and registration before adding replacements; explain any small adapter required for the shared encoder. The standalone supervised version must remain independent of Sample Factory.
+
+Both versions should be able to extend to other environments. Keep Gym environment construction and observation adaptation separate from the shared encoder/core and training orchestration. For a new sensory modality, replace the observation frontend and, for supervised learning, the target encoding/loss while retaining the recurrent mechanism. Do not claim arbitrary RGB, vector, or continuous-action support merely because MiniGrid runs; document the supported interface and exact extension points. Prefer small explicit functions and existing integrations over a new framework.
+
 ## Pending scientific inputs
 
 Pelle's curvature definitions/code, the first environment family that varies those measures, and the matched reservoir comparison protocol remain to be specified. Implementation can proceed with a replaceable measurement interface and without inventing curvature values or claiming the desired pattern already exists.
+
+## Implementation entry points
+
+- [Standalone supervised guide](../../geomem-experiments/experiments/minigrid_sensory_prediction.md): collection, prediction, controls, and encoder export.
+- [Full APPO guide](../../geomem-experiments/experiments/geomem/README.md): reused IntrMotiv learning path, MiniGrid adaptation, and frozen-encoder transfer.
+- [Shared encoder and core](../../geomem-models/src/geomem_models/lin_intrmotiv.py): common representation code, independent of Sample Factory.
+- [Verification in the results synthesis](current_results_synthesis.md#minigrid-infrastructure-verification): small execution checks, separate from scientific evidence.

@@ -1,0 +1,33 @@
+{
+  "inspected_date": "2026-10-28",
+  "source_root": "/home/xiaoxiong/SFgit/SF_hipposlam",
+  "repository_head": "14ddeadadd8e1f375683a633719b0147319b859b",
+  "working_tree_dirty": false,
+  "source_sha256": {
+    "sf_working_directories/IntrMotiv/dmlab/custom_encoder.py": "7fa678b8be3db8f1fa218dcead82bc9715e584524de85b39e917dd31ee3632e2",
+    "sf_working_directories/IntrMotiv/dmlab/custom_core.py": "0584bc234b49dabe17d7f77c4af86efcee16fbd821d00f2c97ea721a6918f6e2",
+    "sf_working_directories/IntrMotiv/dmlab/custom_actor_critic.py": "97cc4a8757346d9160d771c8c030bbc59f98169a69190eab800c23801cb7f470",
+    "sf_working_directories/IntrMotiv/dmlab/custom_decoder.py": "6f4b3f3d14cf6cdf4cc669f64d0b4bd3ba70de70e87fb4b39dc8245d97da2991",
+    "sf_working_directories/IntrMotiv/dmlab/custom_learner.py": "94288bb4f8266d7d9ba3188bfe2d96e018bc40184fcd238bc0be1be7e9802d9f",
+    "sf_working_directories/IntrMotiv/dmlab/custom_params.py": "b3f4e73d1409e56b3f4c3d3fa2710a6d9ba79d46b48c4525e1ffff2b39d432c3",
+    "sf_working_directories/IntrMotiv/dmlab/ca3_memory.py": "ce79c39346fb14b8ed70d16a6a8f332831cf375baf24eda1b0d85bf5e9ee4675"
+  },
+  "verbatim_extraction": {
+    "geomem-models/src/geomem_models/lin_intrmotiv.py:DGProjection_batchnorm_relu": "custom_encoder.py:DGProjection_batchnorm_relu"
+  },
+  "runtime_reuse": [
+    "custom_actor_critic.py:make_hipposlam_actor_critic",
+    "custom_decoder.py:make_hipposlam_decoder",
+    "custom_learner.py:make_hipposlam_learner (DistanceLearnerReward)",
+    "custom_params.py:add_hipposlam_env_args",
+    "custom_core.py:SimpleSequenceWithBypassCore configuration and contract"
+  ],
+  "adaptation": "MiniGrid categorical onehot replaces ResNet/instruction frontend and depth bypass. Shared pure additive core delegates single-step and packed replay. APPO and separate temporal-event DG learning remain upstream. This is a flat intrinsic baseline, not all optional HRL/graph branches or a paper reproduction.",
+  "dependencies": {
+    "python": "3.10.12",
+    "torch": "2.7.1",
+    "gymnasium": "0.29.1",
+    "minigrid": "2.3.1"
+  },
+  "reuse_note": "Current local SF fork has no MiniGrid integration. Reuse minigrid.wrappers.ImgObsWrapper and Sample Factory standard dictionary/rollout adapters. Historical SF1 MiniGrid integration uses older APIs."
+}

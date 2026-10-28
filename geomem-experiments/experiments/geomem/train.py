@@ -1,6 +1,7 @@
 """Run from geomem-experiments: python -m experiments.geomem.train."""
 from __future__ import annotations
 import os
+import importlib
 from pathlib import Path
 import sys
 
@@ -11,6 +12,7 @@ if os.environ.get("SF_HIPPOSLAM_ROOT"):
 
 import gymnasium as gym
 import minigrid  # registers MiniGrid environments
+from minigrid.wrappers import ImgObsWrapper
 import torch
 from torch.nn.utils.rnn import PackedSequence, pad_packed_sequence, pack_padded_sequence
 from geomem_models.lin_intrmotiv import CategoricalDGEncoder, LinSequenceCore
@@ -26,26 +28,30 @@ from sf_working_directories.IntrMotiv.dmlab.custom_learner import make_hipposlam
 from sf_working_directories.IntrMotiv.dmlab.custom_params import add_hipposlam_env_args, hipposlam_override_defaults
 
 
-class MiniGridImage(gym.ObservationWrapper):
-    """Partial categorical view only: no mission, compass, pose, or true depth."""
-    def __init__(self, env):
-        super().__init__(env)
-        self.observation_space = gym.spaces.Dict({"obs": env.observation_space["image"]})
+def resolve_factory(spec):
+    module, name = spec.split(":", 1)
+    return getattr(importlib.import_module(module), name)
 
-    def observation(self, observation):
-        return {"obs": observation["image"]}
+
+def minigrid_env(cfg, render_mode=None):
+    # Reuse MiniGrid's own wrapper. SF supplies its standard dictionary wrapper.
+    return ImgObsWrapper(gym.make(cfg.minigrid_env, render_mode=render_mode,
+                                 max_steps=cfg.minigrid_max_steps))
 
 
 def make_env(full_env_name, cfg, env_config=None, render_mode=None):
-    return MiniGridImage(gym.make(cfg.minigrid_env, render_mode=render_mode,
-                                 max_steps=cfg.minigrid_max_steps))
+    return resolve_factory(cfg.env_factory)(cfg, render_mode=render_mode)
+
+
+def make_representation(cfg, shape):
+    return resolve_factory(cfg.representation_factory)(
+        image_shape=shape, features=cfg.Hippo_n_feature, threshold=cfg.DG_BN_intercept)
 
 
 class MiniGridEncoder(Encoder):
     def __init__(self, cfg, obs_space):
         super().__init__(cfg)
-        self.shared = CategoricalDGEncoder(obs_space["obs"].shape,
-                                           cfg.Hippo_n_feature, cfg.DG_BN_intercept)
+        self.shared = make_representation(cfg, obs_space["obs"].shape)
 
     @property
     def DG_projection(self):
@@ -71,6 +77,8 @@ class MiniGridCore(SimpleSequenceWithBypassCore):
         super().__init__(cfg, input_size)
         self.shared = LinSequenceCore(cfg.Hippo_n_feature, cfg.Hippo_R,
                                       cfg.Hippo_L, input_size - cfg.Hippo_n_feature)
+        if self.total_state_size != self.shared.state_size or self.total_output_size != self.shared.state_size:
+            raise ValueError("Inherited settings changed the flat CA3/bypass state layout")
 
     def forward(self, head_output, rnn_states, **kwargs):
         if kwargs:
@@ -99,24 +107,45 @@ def make_core(cfg, input_size):
     return MiniGridCore(cfg, input_size)
 
 
+def make_actor_critic(cfg, obs_space, action_space):
+    actor = make_hipposlam_actor_critic(cfg, obs_space, action_space)
+    if cfg.shared_encoder_checkpoint:
+        payload = torch.load(cfg.shared_encoder_checkpoint, map_location="cpu", weights_only=True)
+        expected = dict(image_shape=list(obs_space["obs"].shape), features=cfg.Hippo_n_feature,
+                        repeat=cfg.Hippo_R, length=cfg.Hippo_L, threshold=cfg.DG_BN_intercept)
+        if payload["representation_config"] != expected:
+            raise ValueError(f"Shared representation mismatch: expected {expected}")
+        actor.encoder.shared.load_state_dict(payload["encoder"], strict=True)
+    if cfg.transfer_freeze_dg:
+        actor.encoder.DG_projection.requires_grad_(False)
+        actor.encoder.DG_projection.freeze_running_stats = True
+    return actor
+
+
 def register_components():
     register_env("geomem_minigrid", make_env)
     factory = global_model_factory()
     factory.register_encoder_factory(make_encoder)
     factory.register_model_core_factory(make_core)
     factory.register_decoder_factory(make_hipposlam_decoder)
-    factory.register_actor_critic_factory(make_hipposlam_actor_critic)
+    factory.register_actor_critic_factory(make_actor_critic)
     global_learner_factory().register_learner_factory(make_hipposlam_learner)
 
 
 def parse_args(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not any(value == "--env" or value.startswith("--env=") for value in argv):
+        argv += ["--env=geomem_minigrid"]
     parser, _ = parse_sf_args(argv)
     add_hipposlam_env_args(parser)
     hipposlam_override_defaults(parser)
-    parser.add_argument("--minigrid_env", default="MiniGrid-Empty-6x6-v0")
+    parser.add_argument("--shared_encoder_checkpoint", default=None)
+    parser.add_argument("--env_factory", default="experiments.geomem.train:minigrid_env")
+    parser.add_argument("--representation_factory", default="geomem_models.lin_intrmotiv:CategoricalDGEncoder")
+    parser.add_argument("--minigrid_env", default="MiniGrid-Empty-Random-6x6-v0")
     parser.add_argument("--minigrid_max_steps", type=int, default=128)
     parser.set_defaults(
-        env="geomem_minigrid", algo="APPO", device="cpu", async_rl=True,
+        env="geomem_minigrid", algo="APPO", device="cpu", async_rl=True, seed=0,
         num_workers=2, num_envs_per_worker=2, worker_num_splits=1,
         rollout=32, recurrence=32, batch_size=128, num_batches_per_epoch=1, num_epochs=1,
         train_for_env_steps=100000, experiment="geomem_minigrid",
@@ -127,6 +156,7 @@ def parse_args(argv=None):
         normalize_input=False, normalize_returns=False, obs_scale=1.0,
         obs_subtract_mean=0.0, env_frameskip=1, decoder_mlp_layers=[64, 64],
         actor_critic_share_weights=True, distance_learning=True, double_value=False,
+        encoder_reward_method="encourage", metric="sum", reward_scale=0.1,
         ppo_dg_gradient="stop", advantage_reward_source="internal", use_internal=True,
         use_external=False, extra_encoder_losses=True, extra_decoder_loss=False,
         online_spatial_telemetry=False, hrl_controllable_graph=False,
@@ -135,12 +165,17 @@ def parse_args(argv=None):
     )
     cfg = parse_full_cfg(parser, argv)
     required = {
-        "core_name": "BypassSS", "distance_learning": True,
+        "core_name": "BypassSS", "DG_name": "batchnorm_relu", "distance_learning": True,
         "hrl_controllable_graph": False, "dg_context_feedback": "none",
         "dg_goal_input": "none", "intrinsic_goal_mode": "none",
+        "dg_ca3_reentry_inhibition": "none", "dg_transition_prediction": "none",
+        "hrl_action_path_integration": False, "hrl_motion_policy_input": False,
+        "fixed_task_conditioning": False, "extra_decoder_loss": False,
+        "online_spatial_telemetry": False, "with_pbt": False,
         "ca3_state_readout_mode": "off", "controller_learning": "ppo",
         "dg_orthogonal_recruitment": False, "actor_critic_share_weights": True,
         "dg_batchnorm_semantics": "running_poststep_atomic",
+        "transfer_model_path": None, "transfer_scope": "none",
         "normalize_input": False, "obs_scale": 1.0, "env_frameskip": 1,
     }
     for key, expected in required.items():
@@ -150,8 +185,9 @@ def parse_args(argv=None):
         raise ValueError("Feature count, repeat, length, and max steps must be positive")
     probe = make_env(cfg.env, cfg)
     try:
-        backbone = CategoricalDGEncoder(probe.observation_space["obs"].shape,
-                                         cfg.Hippo_n_feature, cfg.DG_BN_intercept)
+        space = probe.observation_space
+        shape = space["obs"].shape if isinstance(space, gym.spaces.Dict) else space.shape
+        backbone = make_representation(cfg, shape)
         cfg.rnn_size = cfg.Hippo_n_feature * (cfg.Hippo_R + cfg.Hippo_L - 1) + backbone.bypass_size
     finally:
         probe.close()
