@@ -196,7 +196,7 @@ def visualize_network(
     ax.set_ylim(y_min - 0.5, y_max + 0.5)
     ax.set_xticks(np.arange(np.floor(x_min), np.ceil(x_max) + 1))
     ax.set_yticks(np.arange(np.floor(y_min), np.ceil(y_max) + 1))
-    ax.set_title(title)
+    ax.set_title(f'{title}: {np.nanmean(edge_values):.3f} curvature')
     ax.grid(False)
 
     sm = mpl.cm.ScalarMappable(cmap=cmap_obj, norm=norm)
