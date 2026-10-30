@@ -500,10 +500,10 @@ def link_curvature(env, Omega):
     return k
 
 
-def setup_env(EnvString, edge_length, visualise=False):
+def setup_env(EnvString, edge_length=None, visualise=False):
     counter = 0
     while True:
-        env = gym.make(EnvString, size=edge_length)
+        env = gym.make(EnvString)#, size=edge_length)
         _, _ = env.reset()
 
         graph = minigrid_maze_to_graph(env, undirected=True)
@@ -541,7 +541,7 @@ def setup_env(EnvString, edge_length, visualise=False):
                 G_vis.add_edge(state, nxt)
 
         index_state = {state: i for i, state in enumerate(sorted(graph.keys()))}
-        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[2])
+        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[1])
 
     return raw_commutativity, valid_commutativity, mean_link_cur
 
@@ -589,7 +589,7 @@ def measures_from_env(env, EnvString, visualise=False):
                 G_vis.add_edge(state, nxt)
 
         index_state = {state: i for i, state in enumerate(sorted(graph.keys()))}
-        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[2])
+        visualize_network(G_vis, node_cur, link_cur, index=index_state, title=EnvString.split('-')[1])
 
     return raw_commutativity, valid_commutativity, mean_link_cur
 
